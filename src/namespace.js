@@ -1,4 +1,4 @@
 sap.ui.define([], function () {
   'use strict';
-  return 'sap.ui.mobx.validation';
+  return 'sap.ui.mobxValidation';
 });
