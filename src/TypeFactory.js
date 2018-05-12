@@ -19,8 +19,12 @@ sap.ui.define([
 					try {
 						// Show unformatted model value in case it can't be parsed back successfully to itself (otherwise it could be formatted to "")
 						var formatted = BaseType.prototype.formatValue.apply(this, arguments);
+						if (value !== "" && formatted === "") { // "asdfasdfa" formatted to ""
+							throw new ParseException();
+						}
 						var parsed = this.parseValue(formatted, sInternalType, true);
-						if (parsed !== value) {
+						var formatted2 = BaseType.prototype.formatValue.call(this, parsed, sInternalType);
+						if (formatted !== formatted2) {
 							throw new ParseException();
 						}
 						return formatted;
