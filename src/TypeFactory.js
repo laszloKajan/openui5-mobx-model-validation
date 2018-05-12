@@ -5,18 +5,25 @@ sap.ui.define([
 	"use strict";
 
 	return {
+		/**
+		 * Creates simple type for MobxModel validation. Only works with simple types.
+		 */
 		createExtendedType: function(BaseType, sNewTypeName) {
 			return BaseType.extend(sNewTypeName, {
 				constructor: function() {
 					BaseType.prototype.constructor.apply(this, arguments);
 					this.sNameSubtype = sNewTypeName; // C.f. this.sName. We need this to tell apart types after the current JSON.stringify in models.js.
 				},
-				
-				formatValue: function(value, sInternalType) {
+
+				formatValue: function(value, sInternalType) { // Format the given value in model representation to an output value in the given internal type
 					try {
-						// Don't format it if it can't be parsed
-						this.parseValue(value, sInternalType, true);
-						return BaseType.prototype.formatValue.apply(this, arguments);
+						// Show unformatted model value in case it can't be parsed back successfully to itself (otherwise it could be formatted to "")
+						var formatted = BaseType.prototype.formatValue.apply(this, arguments);
+						var parsed = this.parseValue(formatted, sInternalType, true);
+						if (parsed !== value) {
+							throw new ParseException();
+						}
+						return formatted;
 					} catch (oException) {
 						if (oException instanceof ParseException) {
 							return value;
@@ -26,8 +33,7 @@ sap.ui.define([
 					}
 				},
 
-				parseValue: function(value, sInternalType, bModelValidation) { // Parse a value of an internal type to the expected value of the model type
-
+				parseValue: function(value, sInternalType, bModelValidation) { // Parse a value of the given internal type to the expected value of the model type
 					try {
 						var retVal = value; // Do not simplify, keep it with retVal
 						retVal = BaseType.prototype.parseValue.apply(this, arguments);
@@ -42,14 +48,13 @@ sap.ui.define([
 				},
 
 				validateValue: function(value, bModelValidation) { // Validate whether a given value in model representation is valid and meets the defined constraints
-
 					// Only perform if bModelValidation
 					if (bModelValidation) {
 						try {
 							BaseType.prototype.validateValue.apply(this, arguments);
 						} catch (oException) {
 							if (!(oException instanceof ParseException) && !(oException instanceof ValidateException)) {
-								
+
 								var sMsg = oException.message;
 								throw new ValidateException(sMsg);
 							} else {
