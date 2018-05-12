@@ -55,6 +55,7 @@ sap.ui.define([
 					// Only perform if bModelValidation
 					if (bModelValidation) {
 						try {
+							// lkajan: Note: validateValue only checks constraints (if any), not syntax. In lack of constraints, it will not throw.
 							BaseType.prototype.validateValue.apply(this, arguments);
 						} catch (oException) {
 							if (!(oException instanceof ParseException) && !(oException instanceof ValidateException)) {
