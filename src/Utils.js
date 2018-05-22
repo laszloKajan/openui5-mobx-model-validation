@@ -55,6 +55,8 @@ sap.ui.define([
 			};
 
 			try {
+				// lkajan: In order to establish validity, we need to check parsability and validity, as the latter only checks constraints (if any).
+				//		Parsability is meant for /model/ (not internal/input) values here.
 				var parsedValue = oSource.oType.parseValue(oSource.value, oSource.sInternalType, true);
 				oSource.oType.validateValue(parsedValue, true);
 			} catch (oException) {
@@ -153,6 +155,8 @@ sap.ui.define([
 
 	return {
 		/**
+		 * Deprecated. Use reactionByType() and reactionChanged().
+		 * 
 		 * Get model object property validation results by type validation. Non-changed state appears to be valid regardless of validity.
 		 * Only for simple types.
 		 *
@@ -165,6 +169,8 @@ sap.ui.define([
 		 * @return {object} 				{valid: boolean, valueState: sap.ui.core.ValueState, valueStateText: string}
 		 */
 		getModelPropertyValidationByType: function(oObject, sProperty, oType, sInternalType, bIgnoreChanged) {
+
+			console.warn("Deprecated");
 
 			var oVal = _fTransformModelPropertyToValidationByType(__mobx.get(oObject, sProperty), oType, sInternalType);
 			var oRet = { // Must copy object, because oVal is memoized and we might change it below
@@ -179,6 +185,74 @@ sap.ui.define([
 				oRet.valueState = "None";
 			}
 			return oRet;
+		},
+
+		/**
+		 * Create a model object property validation reaction by type validation. If not changed, changedValueState is "None".
+		 * Only for simple types.
+		 *
+		 * @param {object} oObservable - 	Observable object
+		 * @param {string} sProperty -		Observable property
+		 * @param {object} oType -			Property type instance
+		 * @param {string} sInternalType -	Type used to display and input property, c.f. model type
+		 * @param {object} oObservable2 -	Observable object of bIgnoreChanged
+		 * @param {string} sIgnoreChanged -	oObservable2 property that controls whether the changed status of oObservable[sProperty] is ignored
+		 * @return {[function, function]} 	[disposer function 1, disposer function 2]
+		 */
+		reactionChangedByType: function(oObservable, sProperty, oType, sInternalType, oObservable2, sIgnoreChanged) {
+			if (!oType || !sInternalType || !oObservable2 || !sIgnoreChanged) {
+				throw new Error("Invalid function call");
+			}
+			return [__mobx.reaction(function() {
+						return __mobx.get(oObservable, sProperty);
+					},
+					function(value) {
+						// Condition
+						var bValid, sValueStateText;
+						try {
+							// lkajan: In order to establish validity, we need to check parsability and validity, as the latter only checks constraints (if any).
+							//		Parsability is meant for /model/ (not internal/input) values here.
+							var parsedValue = oType.parseValue(value, sInternalType, true);
+							oType.validateValue(parsedValue, true);
+							bValid = true;
+						} catch (oException) {
+							if (oException instanceof ParseException || oException instanceof ValidateException) {
+								bValid = false;
+								sValueStateText = oException.message;
+							} else {
+								throw oException;
+							}
+						}
+						//
+						var sValidation = sProperty + "$Validation";
+						if (!oObservable[sValidation]) {
+							__mobx.set(oObservable, sValidation, { // More properties may be added downstream
+								valid: false,
+								valueState: "None",
+								valueStateText: ""
+							});
+						}
+						var oValidation = oObservable[sValidation];
+						oValidation.valid = bValid;
+						oValidation.valueState = bValid ? "None" : "Error";
+						oValidation.valueStateText = bValid ? "" : sValueStateText;
+					}, true),
+				this.reactionChanged(oObservable, sProperty, oObservable2, sIgnoreChanged)
+			];
+		},
+
+		reactionChanged: function(oObservable, sProperty, oObservable2, sIgnoreChanged) { // state, "sReceiverCompanyCode", state, "$ignoreChanged"
+			return __mobx.reaction(function() {
+				var oValidation = oObservable[sProperty + "$Validation"];
+				return {
+					valid: __mobx.get(oValidation, "valid"),
+					bChanged: __mobx.get(oObservable, sProperty + "$Changed"),
+					bIgnoreChanged: __mobx.get(oObservable, sIgnoreChanged)
+				};
+			}, function(oData) {
+				var oValidation = oObservable[sProperty + "$Validation"];
+				__mobx.set(oValidation, "changedValueState", oData.bChanged || oData.bIgnoreChanged ? "Error" : "None");
+			}, true);
 		},
 
 		transformModelToValidationArray: __mobxUtils.createTransformer(function(oSource) {

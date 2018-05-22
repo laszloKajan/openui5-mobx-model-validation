@@ -4,6 +4,16 @@ sap.ui.define([
 ], function(ParseException, ValidateException) {
 	"use strict";
 
+	function _getYYYYMMDDString(dDate) {
+		var mm = dDate.getMonth() + 1; // getMonth() is zero-based
+		var dd = dDate.getDate();
+
+		return [dDate.getFullYear(),
+			(mm > 9 ? "" : "0") + mm,
+			(dd > 9 ? "" : "0") + dd
+		].join("");
+	}
+
 	return {
 		/**
 		 * Creates simple type for MobxModel validation. Only works with simple types.
@@ -38,9 +48,39 @@ sap.ui.define([
 				},
 
 				parseValue: function(value, sInternalType, bModelValidation) { // Parse a value of the given internal type to the expected value of the model type
+					var retVal = value; // Do not simplify, make a copy to retVal
 					try {
-						var retVal = value; // Do not simplify, keep it with retVal
-						retVal = BaseType.prototype.parseValue.apply(this, arguments);
+						// lkajan: This is used to parse both user input values, and model values. Make sure it's sInternalType that's parsed.
+						// Currency-dbg.js:
+						var vValueInInternalType = value;
+						switch (this.getPrimitiveType(sInternalType)) {
+							case "string":
+								if (typeof vValueInInternalType !== "string") {
+									if (vValueInInternalType instanceof Date) {
+										switch (this.sName) {
+											case "Date":
+												vValueInInternalType = _getYYYYMMDDString(vValueInInternalType);
+												break;
+											default:
+												vValueInInternalType = vValueInInternalType.toISOString();
+										}
+									} else {
+										vValueInInternalType = String(vValueInInternalType);
+									}
+								}
+								break;
+							case "int":
+							case "float":
+								if (typeof vValueInInternalType !== "number") {
+									vValueInInternalType = Number(vValueInInternalType);
+								}
+								break;
+							case "any":
+							default:
+								throw new ParseException("Don't know how to convert value to " + sInternalType);
+						}
+						// TODO: test this
+						retVal = BaseType.prototype.parseValue.call(this, vValueInInternalType, sInternalType, bModelValidation);
 						return retVal;
 					} catch (oException) {
 						if (bModelValidation) {
