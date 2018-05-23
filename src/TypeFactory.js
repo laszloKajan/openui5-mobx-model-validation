@@ -51,7 +51,7 @@ sap.ui.define([
 					var retVal = value; // Do not simplify, make a copy to retVal
 					try {
 						// lkajan: This is used to parse both user input values, and model values. Make sure it's sInternalType that's parsed.
-						// Currency-dbg.js:
+						// Example: Currency-dbg.js
 						var vValueInInternalType = value;
 						switch (this.getPrimitiveType(sInternalType)) {
 							case "string":
