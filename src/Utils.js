@@ -199,7 +199,7 @@ sap.ui.define([
 		 * @param {string} sIgnoreChanged -	oObservable2 property that controls whether the changed status of oObservable[sProperty] is ignored
 		 * @return {[function, function]} 	[disposer function 1, disposer function 2]
 		 */
-		reactionChangedByType: function(oObservable, sProperty, oType, sInternalType, oObservable2, sIgnoreChanged) {
+		reactionByTypeChanged: function(oObservable, sProperty, oType, sInternalType, oObservable2, sIgnoreChanged) {
 			if (!oType || !sInternalType || !oObservable2 || !sIgnoreChanged) {
 				throw new Error("Invalid function call");
 			}
