@@ -155,39 +155,6 @@ sap.ui.define([
 
 	return {
 		/**
-		 * Deprecated. Use reactionByType() and reactionChanged().
-		 * 
-		 * Get model object property validation results by type validation. Non-changed state appears to be valid regardless of validity.
-		 * Only for simple types.
-		 *
-		 * @param {object} oObject - 		Model object
-		 * @param {string} sProperty -		Model object property name
-		 * @param {object} oType -			Property type instance
-		 * @param {string} sInternalType -	Type used to display and input property, c.f. model type
-		 * @param {boolean} bIgnoreChanged - Ignore (non-)changed state of property when setting valueState. true: valueState is set even if value hasn't been
-		 *										changed by user
-		 * @return {object} 				{valid: boolean, valueState: sap.ui.core.ValueState, valueStateText: string}
-		 */
-		getModelPropertyValidationByType: function(oObject, sProperty, oType, sInternalType, bIgnoreChanged) {
-
-			console.warn("Deprecated");
-
-			var oVal = _fTransformModelPropertyToValidationByType(__mobx.get(oObject, sProperty), oType, sInternalType);
-			var oRet = { // Must copy object, because oVal is memoized and we might change it below
-				valid: oVal.valid,
-				valueStateText: oVal.valueStateText
-			};
-
-			if (!oRet.valid) {
-				var bChanged = __mobx.get(oObject, sProperty + "$Changed");
-				oRet.valueState = bChanged || bIgnoreChanged ? "Error" : "None";
-			} else {
-				oRet.valueState = "None";
-			}
-			return oRet;
-		},
-
-		/**
 		 * Create a model object property validation reaction by type validation. If not changed, changedValueState is "None".
 		 * Only for simple types.
 		 *
