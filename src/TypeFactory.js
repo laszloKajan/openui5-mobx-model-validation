@@ -1,7 +1,8 @@
 sap.ui.define([
+	"sap/ui/model/FormatException",
 	"sap/ui/model/ParseException",
 	"sap/ui/model/ValidateException"
-], function(ParseException, ValidateException) {
+], function(FormatException, ParseException, ValidateException) {
 	"use strict";
 
 	function _getYYYYMMDDString(dDate) {
@@ -26,11 +27,12 @@ sap.ui.define([
 				},
 
 				formatValue: function(value, sInternalType) { // Format the given value in model representation to an output value in the given internal type
+					// Show unformatted model value in case it can't be parsed back successfully to itself (otherwise it could be formatted to ""),
+					//	or in case of other problems with formatting/parsing, e.g. when date is not a Date()
 					try {
-						// Show unformatted model value in case it can't be parsed back successfully to itself (otherwise it could be formatted to "")
 						var formatted = BaseType.prototype.formatValue.apply(this, arguments);
 						if (value !== "" && formatted === "") { // "asdfasdfa" formatted to ""
-							throw new ParseException();
+							throw new FormatException();
 						}
 						var parsed = this.parseValue(formatted, sInternalType, true);
 						var formatted2 = BaseType.prototype.formatValue.call(this, parsed, sInternalType);
@@ -39,11 +41,11 @@ sap.ui.define([
 						}
 						return formatted;
 					} catch (oException) {
-						if (oException instanceof ParseException) {
+						// if (oException instanceof ParseException) { // TODO: remove commented lines
 							return value;
-						} else {
-							throw oException;
-						}
+						// } else {
+						// 	throw oException;
+						// }
 					}
 				},
 
