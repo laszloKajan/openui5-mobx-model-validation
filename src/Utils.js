@@ -7,6 +7,8 @@ sap.ui.define([
 ], function(__mobx, __mobxUtils, Message, ParseException, ValidateException) {
 	"use strict";
 
+	// TODO: remove obsolete/unused functions
+
 	var oCacheForNodePath = {};
 	var _fGetNodePathObject = function(oNode, sPath) {
 		var oNodePath = oCacheForNodePath[sPath];
@@ -153,24 +155,62 @@ sap.ui.define([
 		});
 	});
 
+	var _reactionChanged = function(oObservable, sPropNameValidation, sPropNameChanged, oObservable2, sIgnoreChanged) { // state, "sReceiverCompanyCode", state, "$ignoreChanged"
+		return __mobx.reaction(function() {
+			var oValidation = oObservable[sPropNameValidation];
+			return {
+				valueState: __mobx.get(oValidation, "valueState"),
+				bChanged: __mobx.get(oObservable, sPropNameChanged),
+				bIgnoreChanged: __mobx.get(oObservable2, sIgnoreChanged)
+			};
+		}, function(oData) {
+			var oValidation = oObservable[sPropNameValidation];
+			__mobx.set(oValidation, "changedValueState", oData.bChanged || oData.bIgnoreChanged ? oData.valueState : "None");
+		}, true);
+	};
+
+	var _removeValidationMsg = function(oModel, sPath) { // oModel, "/nAmount"
+		var sPathValidationMsg = sPath + "$ValidationMsg";
+		var oMessage = oModel.getProperty(sPathValidationMsg);
+
+		if (oMessage) {
+			var oMessageManager = sap.ui.getCore().getMessageManager();
+			oMessageManager.removeMessages(oMessage);
+			oMessage.destroy();
+			oModel.setProperty(sPathValidationMsg, oMessage = null);
+		}
+	};
+
 	return {
 		/**
-		 * Create a model object property validation reaction by type validation. If not changed, changedValueState is "None".
+		 * Create two reactions:
+		 *	1) a model object property validation reaction by type validation;
+		 *	2) an reaction takind the changed-ness of the input control into account: unchanged inputs get "changedValueState" set to "None".
 		 * Only for simple types.
+		 * Returns the two corresponding disposers.
 		 *
 		 * @param {object} oObservable - 	Observable object
 		 * @param {string} sProperty -		Observable property
 		 * @param {object} oType -			Property type instance
 		 * @param {string} sInternalType -	Type used to display and input property, c.f. model type
-		 * @param {object} oObservable2 -	Observable object of bIgnoreChanged
+		 * @param {object} oObservable2 -	Observable object for bIgnoreChanged property
 		 * @param {string} sIgnoreChanged -	oObservable2 property that controls whether the changed status of oObservable[sProperty] is ignored
+		 * @param {string} sPropNameValidation? -
+		 *									Validation property name of oObservable, default: sProperty + "$Validation"
+		 * @param {string} sPropNameChanged? -
+		 *									Changed flag property name of oObservable, default: sProperty + "$Changed"
 		 * @return {[function, function]} 	[disposer function 1, disposer function 2]
 		 */
-		reactionByTypeChanged: function(oObservable, sProperty, oType, sInternalType, oObservable2, sIgnoreChanged) {
+		reactionByTypeChanged: function(oObservable, sProperty, oType, sInternalType, oObservable2, sIgnoreChanged, sPropNameValidation,
+			sPropNameChanged) {
 			if (!oType || !sInternalType || !oObservable2 || !sIgnoreChanged) {
 				throw new Error("Invalid function call");
 			}
-			return [__mobx.reaction(function() {
+			sPropNameValidation = sPropNameValidation || sProperty + "$Validation";
+			sPropNameChanged = sPropNameChanged || sProperty + "$Changed";
+			return [
+				// Validation reaction
+				__mobx.reaction(function() {
 						return __mobx.get(oObservable, sProperty);
 					},
 					function(value) {
@@ -191,35 +231,21 @@ sap.ui.define([
 							}
 						}
 						//
-						var sValidation = sProperty + "$Validation";
-						if (!oObservable[sValidation]) {
-							__mobx.set(oObservable, sValidation, { // More properties may be added downstream
+						if (!oObservable[sPropNameValidation]) {
+							__mobx.set(oObservable, sPropNameValidation, { // More properties may be added downstream
 								valid: false,
 								valueState: "None",
 								valueStateText: ""
 							});
 						}
-						var oValidation = oObservable[sValidation];
+						var oValidation = oObservable[sPropNameValidation];
 						oValidation.valid = bValid;
 						oValidation.valueState = bValid ? "None" : "Error";
 						oValidation.valueStateText = bValid ? "" : sValueStateText;
 					}, true),
-				this.reactionChanged(oObservable, sProperty, oObservable2, sIgnoreChanged)
+				// Changed state - 'changed' or 'ignoreChanged' - reaction
+				_reactionChanged(oObservable, sPropNameValidation, sPropNameChanged, oObservable2, sIgnoreChanged)
 			];
-		},
-
-		reactionChanged: function(oObservable, sProperty, oObservable2, sIgnoreChanged) { // state, "sReceiverCompanyCode", state, "$ignoreChanged"
-			return __mobx.reaction(function() {
-				var oValidation = oObservable[sProperty + "$Validation"];
-				return {
-					valid: __mobx.get(oValidation, "valid"),
-					bChanged: __mobx.get(oObservable, sProperty + "$Changed"),
-					bIgnoreChanged: __mobx.get(oObservable, sIgnoreChanged)
-				};
-			}, function(oData) {
-				var oValidation = oObservable[sProperty + "$Validation"];
-				__mobx.set(oValidation, "changedValueState", oData.bChanged || oData.bIgnoreChanged ? "Error" : "None");
-			}, true);
 		},
 
 		transformModelToValidationArray: __mobxUtils.createTransformer(function(oSource) {
@@ -228,6 +254,48 @@ sap.ui.define([
 
 		transformValidationArrayToValidationMessages: __mobxUtils.createTransformer(function(aSource) {
 			return aSource.filter(fFilterValidationToMessage).map(fTransformValidationToMessage);
-		})
+		}),
+
+		// Namespace for functions related to sap.ui.core.message.MessageManager
+		messageManager: {
+			reactionValidationMsg: function(oController, oModel, sPropertyPath, sControlId, __sControlProperty) { // , "/nAmount", "inputAmount", "value");
+
+				var oMessageProcessor = new sap.ui.core.message.ControlMessageProcessor();
+				var oMessageManager = sap.ui.getCore().getMessageManager();
+				var sPathValidationMsg = sPropertyPath + "$ValidationMsg";
+				var sControlProperty = __sControlProperty || "value";
+
+				return __mobx.reaction(function() {
+					var value = oModel.getProperty(sPropertyPath);
+					var oValidation = oModel.getProperty(sPropertyPath + "$Validation");
+					return {
+						value: value, // Must pass this, because all control messages are removed upon successful type validation,
+						//	and the 1st round of validation is always successful now.
+						//	Passing 'value' here forces the reaction to run, and re-add the message.
+						valid: oValidation.valid,
+						valueState: oValidation.changedValueState,
+						valueStateText: oValidation.valueStateText
+					};
+				}, function(oValidation) {
+					if (oValidation.valid || oValidation.valueState === "None") { // Could be invalid, but no change yet
+						_removeValidationMsg(oModel, sPropertyPath);
+					} else {
+						_removeValidationMsg(oModel, sPropertyPath);
+						//
+						var oMessage;
+						oModel.setProperty(sPathValidationMsg, oMessage = new Message({
+							message: oValidation.valueStateText.replace(/([{}])/g, "\\$1"),
+							type: oValidation.valueState,
+							target: oController.getView().byId(sControlId).getId() + "/" + sControlProperty, // global control ID, no leading '/'
+							// technical: true,
+							// processor: oModel,
+							processor: oMessageProcessor,
+							persistent: true // true: the message lifecycle is controlled by the application
+						}));
+						oMessageManager.addMessages(oMessage);
+					}
+				}, true);
+			}
+		}
 	};
 });
