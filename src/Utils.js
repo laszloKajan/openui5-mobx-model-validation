@@ -21,65 +21,6 @@ sap.ui.define([
 		return oNodePath;
 	};
 
-	var _fGetKeyForArguments = function() { // Well, we should use hashing really
-		return JSON.stringify(arguments, function(key, value) {
-			if (value instanceof RegExp) {
-				return value.toString();
-			} else {
-				return value;
-			}
-		});
-	};
-
-	var oCacheForValueType = {};
-	var _fGetValueTypeObject = function(value, oType, sInternalType) {
-		var sKey = _fGetKeyForArguments.apply(this, arguments);
-		var oValueType = oCacheForValueType[sKey];
-		if (!oValueType) {
-			oCacheForValueType[sKey] = oValueType = {
-				value: value,
-				oType: oType,
-				sInternalType: sInternalType
-			};
-		}
-		return oValueType;
-	};
-	var _fTransformModelPropertyToValidationByTypeMobX = __mobxUtils.createTransformer(
-		function(oSource) { // {value, oType, sInternalType}
-			//					Is memoization really worth it here?
-			if (!oSource.oType || !oSource.sInternalType) {
-				throw new Error("Invalid function call");
-			}
-			// console.log("_fTransformModelPropertyToValidationByTypeMobX");
-			var oRet = {
-				valid: true,
-				valueStateText: ""
-			};
-
-			try {
-				// lkajan: In order to establish validity, we need to check parsability and validity, as the latter only checks constraints (if any).
-				//		Parsability is meant for /model/ (not internal/input) values here.
-				var parsedValue = oSource.oType.parseValue(oSource.value, oSource.sInternalType, true);
-				oSource.oType.validateValue(parsedValue, true);
-			} catch (oException) {
-				if (oException instanceof ParseException || oException instanceof ValidateException) {
-					oRet.valid = false;
-					oRet.valueStateText = oException.message;
-				} else {
-					throw oException;
-				}
-			}
-			return oRet;
-		},
-		function(result, oSource) {
-			// Cleanup
-			delete oCacheForValueType[_fGetKeyForArguments(oSource.value, oSource.oType, oSource.sInternalType)];
-		});
-	var _fTransformModelPropertyToValidationByType = function(value, oType, sInternalType) {
-		var oSource = _fGetValueTypeObject(value, oType, sInternalType);
-		return _fTransformModelPropertyToValidationByTypeMobX(oSource);
-	};
-
 	var fFilterValidationToMessage = function(oValidation) {
 		return oValidation.valueState !== "None";
 	};
@@ -155,7 +96,8 @@ sap.ui.define([
 		});
 	});
 
-	var _reactionChanged = function(oObservable, sPropNameValidation, sPropNameChanged, oObservable2, sIgnoreChanged) { // state, "sReceiverCompanyCode", state, "$ignoreChanged"
+	var _reactionChanged = function(oObservable, sPropNameValidation, sPropNameChanged, oObservable2, sIgnoreChanged) {
+		// state, "sReceiverCompanyCode$Validation", "sReceiverCompanyCode$Change", state, "$ignoreChanged"
 		return __mobx.reaction(function() {
 			var oValidation = oObservable[sPropNameValidation];
 			return {
@@ -183,6 +125,50 @@ sap.ui.define([
 
 	return {
 		/**
+		 * Namespace for functions related to sap.ui.core.message.MessageManager
+		 */
+		messageManager: {
+			reactionValidationMsg: function(oController, oModel, sPropertyPath, sControlId, __sControlProperty) { // , "/nAmount", "inputAmount", "value");
+
+				var oMessageProcessor = new sap.ui.core.message.ControlMessageProcessor();
+				var oMessageManager = sap.ui.getCore().getMessageManager();
+				var sPathValidationMsg = sPropertyPath + "$ValidationMsg";
+				var sControlProperty = __sControlProperty || "value";
+
+				return __mobx.reaction(function() {
+					var value = oModel.getProperty(sPropertyPath);
+					var oValidation = oModel.getProperty(sPropertyPath + "$Validation");
+					return {
+						value: value, // Must pass this, because all control messages are removed upon successful type validation,
+						//	and the 1st round of validation is always successful now.
+						//	Passing 'value' here forces the reaction to run, and re-add the message.
+						valid: oValidation.valid,
+						valueState: oValidation.changedValueState,
+						valueStateText: oValidation.valueStateText
+					};
+				}, function(oValidation) {
+					if (oValidation.valid || oValidation.valueState === "None") { // Could be invalid, but no change yet
+						_removeValidationMsg(oModel, sPropertyPath);
+					} else {
+						_removeValidationMsg(oModel, sPropertyPath);
+						//
+						var oMessage;
+						oModel.setProperty(sPathValidationMsg, oMessage = new Message({
+							message: oValidation.valueStateText.replace(/([{}])/g, "\\$1"),
+							type: oValidation.valueState,
+							target: oController.getView().byId(sControlId).getId() + "/" + sControlProperty, // global control ID, no leading '/'
+							// technical: true,
+							// processor: oModel,
+							processor: oMessageProcessor,
+							persistent: true // true: the message lifecycle is controlled by the application
+						}));
+						oMessageManager.addMessages(oMessage);
+					}
+				}, true);
+			}
+		},
+
+		/**
 		 * Create two reactions:
 		 *	1) a model object property validation reaction by type validation;
 		 *	2) an reaction takind the changed-ness of the input control into account: unchanged inputs get "changedValueState" set to "None".
@@ -196,9 +182,9 @@ sap.ui.define([
 		 * @param {object} oObservable2 -	Observable object for bIgnoreChanged property
 		 * @param {string} sIgnoreChanged -	oObservable2 property that controls whether the changed status of oObservable[sProperty] is ignored
 		 * @param {string} sPropNameValidation? -
-		 *									Validation property name of oObservable, default: sProperty + "$Validation"
+		 *									Name of validation property of oObservable, default: sProperty + "$Validation"
 		 * @param {string} sPropNameChanged? -
-		 *									Changed flag property name of oObservable, default: sProperty + "$Changed"
+		 *									Name of changed flag property of oObservable, default: sProperty + "$Changed"
 		 * @return {[function, function]} 	[disposer function 1, disposer function 2]
 		 */
 		reactionByTypeChanged: function(oObservable, sProperty, oType, sInternalType, oObservable2, sIgnoreChanged, sPropNameValidation,
@@ -254,48 +240,6 @@ sap.ui.define([
 
 		transformValidationArrayToValidationMessages: __mobxUtils.createTransformer(function(aSource) {
 			return aSource.filter(fFilterValidationToMessage).map(fTransformValidationToMessage);
-		}),
-
-		// Namespace for functions related to sap.ui.core.message.MessageManager
-		messageManager: {
-			reactionValidationMsg: function(oController, oModel, sPropertyPath, sControlId, __sControlProperty) { // , "/nAmount", "inputAmount", "value");
-
-				var oMessageProcessor = new sap.ui.core.message.ControlMessageProcessor();
-				var oMessageManager = sap.ui.getCore().getMessageManager();
-				var sPathValidationMsg = sPropertyPath + "$ValidationMsg";
-				var sControlProperty = __sControlProperty || "value";
-
-				return __mobx.reaction(function() {
-					var value = oModel.getProperty(sPropertyPath);
-					var oValidation = oModel.getProperty(sPropertyPath + "$Validation");
-					return {
-						value: value, // Must pass this, because all control messages are removed upon successful type validation,
-						//	and the 1st round of validation is always successful now.
-						//	Passing 'value' here forces the reaction to run, and re-add the message.
-						valid: oValidation.valid,
-						valueState: oValidation.changedValueState,
-						valueStateText: oValidation.valueStateText
-					};
-				}, function(oValidation) {
-					if (oValidation.valid || oValidation.valueState === "None") { // Could be invalid, but no change yet
-						_removeValidationMsg(oModel, sPropertyPath);
-					} else {
-						_removeValidationMsg(oModel, sPropertyPath);
-						//
-						var oMessage;
-						oModel.setProperty(sPathValidationMsg, oMessage = new Message({
-							message: oValidation.valueStateText.replace(/([{}])/g, "\\$1"),
-							type: oValidation.valueState,
-							target: oController.getView().byId(sControlId).getId() + "/" + sControlProperty, // global control ID, no leading '/'
-							// technical: true,
-							// processor: oModel,
-							processor: oMessageProcessor,
-							persistent: true // true: the message lifecycle is controlled by the application
-						}));
-						oMessageManager.addMessages(oMessage);
-					}
-				}, true);
-			}
-		}
+		})
 	};
 });
