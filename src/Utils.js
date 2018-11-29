@@ -138,15 +138,17 @@ sap.ui.define([
 				return __mobx.reaction(function() {
 					var value = oModel.getProperty(sPropertyPath);
 					var oValidation = oModel.getProperty(sPropertyPath + "$Validation");
-					return {
+					// Pass data as string, so that automatic MobX change detection works
+					return JSON.stringify({
 						value: value, // Must pass this, because all control messages are removed upon successful type validation,
 						//	and the 1st round of validation is always successful now.
 						//	Passing 'value' here forces the reaction to run, and re-add the message.
 						valid: oValidation.valid,
 						valueState: oValidation.changedValueState,
 						valueStateText: oValidation.valueStateText
-					};
-				}, function(oValidation) {
+					});
+				}, function(sValidation) {
+					var oValidation = JSON.parse(sValidation);
 					if (oValidation.valid || oValidation.valueState === "None") { // Could be invalid, but no change yet
 						_removeValidationMsg(oModel, sPropertyPath);
 					} else {
@@ -161,17 +163,28 @@ sap.ui.define([
 							// processor: oModel,
 							processor: oMessageProcessor,
 							persistent: true // true: the message lifecycle is controlled by the application
+								// validation: false	// otherwise the message is immediately removed, because of validation success
 						}));
+						oMessage.targetControllerId = oController.getView().getId(); // can be used to identify messages to remove when the view is destroyed,
+						//																 as these messages are not removed automatically
 						oMessageManager.addMessages(oMessage);
 					}
 				}, true);
+			},
+
+			removeAllMessages: function(oController) {
+				var sTargetControllerId = oController.getView().getId();
+				sap.ui.getCore().getMessageManager().removeMessages(sap.ui.getCore().getMessageManager().getMessageModel().getData().filter(function(
+					oMessage) {
+					return oMessage.targetControllerId === sTargetControllerId;
+				}));
 			}
 		},
 
 		/**
 		 * Create two reactions:
 		 *	1) a model object property validation reaction by type validation;
-		 *	2) an reaction takind the changed-ness of the input control into account: unchanged inputs get "changedValueState" set to "None".
+		 *	2) a reaction taking the changed-ness of the input control into account: unchanged inputs get "changedValueState" set to "None".
 		 * Only for simple types.
 		 * Returns the two corresponding disposers.
 		 *
