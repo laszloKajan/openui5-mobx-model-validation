@@ -21,9 +21,6 @@ sap.ui.define([
 		return oNodePath;
 	};
 
-	var fFilterValidationToMessage = function(oValidation) {
-		return oValidation.valueState !== "None";
-	};
 	var fTransformValidation = __mobxUtils.createTransformer(function(oValidation) {
 		return {
 			valid: oValidation.valid,
@@ -87,14 +84,6 @@ sap.ui.define([
 		var oNodePath = _fGetNodePathObject(oNode, sPath);
 		return _fTransformModelToValidationArrayMobX(oNodePath);
 	};
-
-	var fTransformValidationToMessage = __mobxUtils.createTransformer(function(oValidation) { // Current value, index, array
-		return new Message({
-			message: oValidation.valueStateText.replace(/([{}])/g, "\\$1"),
-			type: oValidation.valueState,
-			validation: true
-		});
-	});
 
 	var _reactionChanged = function(oObservable, sPropNameValidation, sPropNameChanged, oObservable2, sIgnoreChanged) {
 		// state, "sReceiverCompanyCode$Validation", "sReceiverCompanyCode$Change", state, "$ignoreChanged"
@@ -247,10 +236,6 @@ sap.ui.define([
 
 		transformModelToValidationArray: __mobxUtils.createTransformer(function(oSource) {
 			return fTransformModelToValidationArray(oSource, "");
-		}),
-
-		transformValidationArrayToValidationMessages: __mobxUtils.createTransformer(function(aSource) {
-			return aSource.filter(fFilterValidationToMessage).map(fTransformValidationToMessage);
 		})
 	};
 });
