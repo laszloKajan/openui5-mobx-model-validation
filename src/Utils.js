@@ -116,12 +116,26 @@ sap.ui.define([
 		 * Namespace for functions related to sap.ui.core.message.MessageManager
 		 */
 		messageManager: {
-			reactionValidationMsg: function(oController, oModel, sPropertyPath, sControlId, __sControlProperty) { // , "/nAmount", "inputAmount", "value");
+			/**
+			 * Creates a reaction that observes oModel.getProperty(sPropertyPath + "$Validation")'s properties 'valid', 'changedValueState' and 'valueStateText'.
+			 * The reaction clears, or sets the appropriate message in sap.ui.getCore().getMessageManager().
+			 * The message target is obtained as oController.getView().byId(sControlId).getId() + "/" + sControlProperty.
+			 * Returns the disposer.
+			 *
+			 * @param {object} oController - 	Controller
+			 * @param {object} oModel -			Observable data model
+			 * @param {string} sPropertyPath -	Model property path, e.g. '/nAmount'
+			 * @param {string} sControlId -		View 'id' of control that is the 'target' of the message
+			 * @param {string} sControlProperty -
+			 *									Bound property of message target control, default: 'value'.
+			 * @return {function} 				Disposer function
+			 */
+			reactionValidationMsg: function(oController, oModel, sPropertyPath, sControlId, sControlProperty) { // , "/nAmount", "inputAmount", "value");
 
 				var oMessageProcessor = new sap.ui.core.message.ControlMessageProcessor();
 				var oMessageManager = sap.ui.getCore().getMessageManager();
 				var sPathValidationMsg = sPropertyPath + "$ValidationMsg";
-				var sControlProperty = __sControlProperty || "value";
+				var sControlProp = sControlProperty || "value";
 
 				return __mobx.reaction(function() {
 					var oValidation = oModel.getProperty(sPropertyPath + "$Validation");
@@ -142,7 +156,7 @@ sap.ui.define([
 						oModel.setProperty(sPathValidationMsg, oMessage = new Message({
 							message: oValidation.valueStateText.replace(/([{}])/g, "\\$1"),
 							type: oValidation.valueState,
-							target: oController.getView().byId(sControlId).getId() + "/" + sControlProperty, // global control ID, no leading '/'
+							target: oController.getView().byId(sControlId).getId() + "/" + sControlProp, // global control ID, no leading '/'
 							// technical: true,
 							// processor: oModel,
 							processor: oMessageProcessor,
@@ -167,7 +181,7 @@ sap.ui.define([
 		},
 
 		/**
-		 * Create two reactions:
+		 * Creates two reactions:
 		 *	1) a model object property validation reaction by type validation;
 		 *	2) a reaction taking the changed-ness of the input control into account: unchanged inputs get "changedValueState" set to "None".
 		 * Only for simple types.
