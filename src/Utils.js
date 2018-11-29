@@ -100,12 +100,13 @@ sap.ui.define([
 		// state, "sReceiverCompanyCode$Validation", "sReceiverCompanyCode$Change", state, "$ignoreChanged"
 		return __mobx.reaction(function() {
 			var oValidation = oObservable[sPropNameValidation];
-			return {
+			return JSON.stringify({
 				valueState: __mobx.get(oValidation, "valueState"),
 				bChanged: __mobx.get(oObservable, sPropNameChanged),
 				bIgnoreChanged: __mobx.get(oObservable2, sIgnoreChanged)
-			};
-		}, function(oData) {
+			});
+		}, function(sData) {
+			var oData = JSON.parse(sData);
 			var oValidation = oObservable[sPropNameValidation];
 			__mobx.set(oValidation, "changedValueState", oData.bChanged || oData.bIgnoreChanged ? oData.valueState : "None");
 		}, true);
@@ -136,13 +137,9 @@ sap.ui.define([
 				var sControlProperty = __sControlProperty || "value";
 
 				return __mobx.reaction(function() {
-					var value = oModel.getProperty(sPropertyPath);
 					var oValidation = oModel.getProperty(sPropertyPath + "$Validation");
 					// Pass data as string, so that automatic MobX change detection works
 					return JSON.stringify({
-						value: value, // Must pass this, because all control messages are removed upon successful type validation,
-						//	and the 1st round of validation is always successful now.
-						//	Passing 'value' here forces the reaction to run, and re-add the message.
 						valid: oValidation.valid,
 						valueState: oValidation.changedValueState,
 						valueStateText: oValidation.valueStateText
@@ -165,8 +162,9 @@ sap.ui.define([
 							persistent: true // true: the message lifecycle is controlled by the application
 								// validation: false	// otherwise the message is immediately removed, because of validation success
 						}));
-						oMessage.targetControllerId = oController.getView().getId(); // can be used to identify messages to remove when the view is destroyed,
-						//																 as these messages are not removed automatically
+						oMessage.targetControllerId = oController.getView().getId(); // Can be used to identify messages to remove when the view is destroyed,
+						//																as these messages are not removed automatically.
+						//																Note: the UI5 part of the validation is always successful when this library is used.
 						oMessageManager.addMessages(oMessage);
 					}
 				}, true);
