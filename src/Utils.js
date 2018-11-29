@@ -7,8 +7,6 @@ sap.ui.define([
 ], function(__mobx, __mobxUtils, Message, ParseException, ValidateException) {
 	"use strict";
 
-	// TODO: remove obsolete/unused functions
-
 	var oCacheForNodePath = {};
 	var _fGetNodePathObject = function(oNode, sPath) {
 		var oNodePath = oCacheForNodePath[sPath];
