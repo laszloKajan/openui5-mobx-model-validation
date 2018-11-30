@@ -124,7 +124,8 @@ sap.ui.define([
 			 *
 			 * @param {object} oController - 	Controller
 			 * @param {object} oModel -			Observable data model
-			 * @param {string} sPropertyPath -	Model property path, e.g. '/nAmount'
+			 * @param {string} sPropertyPath -	Model property path to observe for validation results, e.g. '/nAmount'.
+			 *									The property observed is sPropertyPath + "$Validation".
 			 * @param {string} sControlId -		View 'id' of control that is the 'target' of the message
 			 * @param {string} sControlProperty -
 			 *									Bound property of message target control, default: 'value'.
