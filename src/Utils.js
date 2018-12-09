@@ -139,9 +139,13 @@ sap.ui.define([
 				var sControlProp = sControlProperty || "value";
 
 				return __mobx.reaction(function() {
-					var oValidation = oModel.getProperty(sPropertyPath + "$Validation");
+					var vValue = oModel.getProperty(sPropertyPath),
+						oValidation = oModel.getProperty(sPropertyPath + "$Validation");
 					// Pass data as string, so that automatic MobX change detection works
 					return JSON.stringify({
+						value: vValue, // Value must be accessed and sent to the reaction, in order to have the reaction set the validation message after
+						//					every value change, even if the validation result remains the same: ManagedObject:2701:fModelChangeHandler().
+						//					This is because the control validation message is removed by the framework after every value change.
 						valid: oValidation.valid,
 						valueState: oValidation.changedValueState,
 						valueStateText: oValidation.valueStateText
@@ -169,13 +173,17 @@ sap.ui.define([
 						//																Note: the UI5 part of the validation is always successful when this library is used.
 						oMessageManager.addMessages(oMessage);
 					}
-				}, true);
+				}, {
+					fireImmediately: true,
+					delay: 5 // Delay is required to allow the message to be set /after/ the framwork removes all control messages upon value change.
+						//		The removal takes place in the flow of the change handler event loop. Delay the reaction to the next event loop.
+				});
 			},
 
 			removeAllMessages: function(oController) {
-				var sTargetControllerId = oController.getView().getId();
-				sap.ui.getCore().getMessageManager().removeMessages(sap.ui.getCore().getMessageManager().getMessageModel().getData().filter(function(
-					oMessage) {
+				var sTargetControllerId = oController.getView().getId(),
+					oMessageManager = sap.ui.getCore().getMessageManager();
+				oMessageManager.removeMessages(oMessageManager.getMessageModel().getData().filter(function(oMessage) {
 					return oMessage.targetControllerId === sTargetControllerId;
 				}));
 			}
