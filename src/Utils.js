@@ -83,6 +83,7 @@ sap.ui.define([
 		return _fTransformModelToValidationArrayMobX(oNodePath);
 	};
 
+	// TODO: removeme
 	var _reactionChanged = function(oObservable, sPropNameValidation, sPropNameChanged, oObservable2, sIgnoreChanged) {
 		// state, "sReceiverCompanyCode$Validation", "sReceiverCompanyCode$Change", state, "$ignoreChanged"
 		return __mobx.reaction(function() {
@@ -143,17 +144,19 @@ sap.ui.define([
 					var vValue = oModel.getProperty(sPropertyPath),
 						oValidation = oModel.getProperty(sPropertyPath + "$Validation");
 					// Pass data as string, so that automatic MobX change detection works
+					// vValue and oValidation may be undefined, e.g. after removing a dwarf in the tutorial
 					return JSON.stringify({
 						value: vValue, // Value must be accessed and sent to the reaction, in order to have the reaction set the validation message after
 						//					every value change, even if the validation result remains the same: ManagedObject:2701:fModelChangeHandler().
 						//					This is because the control validation message is removed by the framework after every value change.
-						valid: oValidation.valid,
-						valueState: oValidation.changedValueState,
-						valueStateText: oValidation.valueStateText
+						valid: oValidation ? oValidation.valid : undefined,
+						valueState: oValidation ? oValidation.changedValueState : undefined,
+						valueStateText: oValidation ? oValidation.valueStateText : undefined
 					});
 				}, function(sValidation) {
 					var oValidation = JSON.parse(sValidation);
-					if (oValidation.valid || oValidation.valueState === "None") { // Could be invalid, but no change yet
+					// Could be invalid, but no change yet. Remove the message in case oValidation.valid is undefined.
+					if (oValidation.valid || oValidation.valueState === "None" || oValidation.valid === undefined) {
 						_removeValidationMsg(oModel, sPropertyPath);
 					} else {
 						_removeValidationMsg(oModel, sPropertyPath);
