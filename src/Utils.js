@@ -83,23 +83,6 @@ sap.ui.define([
 		return _fTransformModelToValidationArrayMobX(oNodePath);
 	};
 
-	// TODO: removeme
-	var _reactionChanged = function(oObservable, sPropNameValidation, sPropNameChanged, oObservable2, sIgnoreChanged) {
-		// state, "sReceiverCompanyCode$Validation", "sReceiverCompanyCode$Change", state, "$ignoreChanged"
-		return __mobx.reaction(function() {
-			var oValidation = oObservable[sPropNameValidation];
-			return JSON.stringify({
-				valueState: __mobx.get(oValidation, "valueState"),
-				bChanged: __mobx.get(oObservable, sPropNameChanged),
-				bIgnoreChanged: __mobx.get(oObservable2, sIgnoreChanged)
-			});
-		}, function(sData) {
-			var oData = JSON.parse(sData);
-			var oValidation = oObservable[sPropNameValidation];
-			__mobx.set(oValidation, "changedValueState", oData.bChanged || oData.bIgnoreChanged ? oData.valueState : "None");
-		}, true);
-	};
-
 	var _removeValidationMsg = function(oModel, sPath) { // oModel, "/nAmount"
 		var sPathValidationMsg = sPath + "$ValidationMsg";
 		var oMessage = oModel.getProperty(sPathValidationMsg);
