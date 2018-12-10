@@ -191,11 +191,9 @@ sap.ui.define([
 		},
 
 		/**
-		 * Creates two reactions:
-		 *	1) a model object property validation reaction by type validation;
-		 *	2) a reaction taking the changed-ness of the input control into account: unchanged inputs get "changedValueState" set to "None".
+		 * Creates a model property validation MobX reaction by type validation.
 		 * Only for simple types.
-		 * Returns the two corresponding disposers.
+		 * Returns the reaction disposer.
 		 *
 		 * @param {object} oObservable - 	Observable object
 		 * @param {string} sProperty -		Observable property
@@ -207,7 +205,7 @@ sap.ui.define([
 		 *									Name of validation property of oObservable, default: sProperty + "$Validation"
 		 * @param {string} sPropNameChanged? -
 		 *									Name of changed flag property of oObservable, default: sProperty + "$Changed"
-		 * @return {[function, function]} 	[disposer function 1, disposer function 2]
+		 * @return {[function, function]} 	[disposer function 1]
 		 */
 		reactionByTypeChanged: function(oObservable, sProperty, oType, sInternalType, oObservable2, sIgnoreChanged, sPropNameValidation,
 			sPropNameChanged) {
@@ -243,16 +241,17 @@ sap.ui.define([
 							__mobx.set(oObservable, sPropNameValidation, { // More properties may be added downstream
 								valid: false,
 								valueState: "None",
-								valueStateText: ""
+								valueStateText: "",
+								get changedValueState() {
+									return __mobx.get(oObservable, sPropNameChanged) || __mobx.get(oObservable2, sIgnoreChanged) ? this.valueState : "None";
+								}
 							});
 						}
 						var oValidation = oObservable[sPropNameValidation];
 						oValidation.valid = bValid;
 						oValidation.valueState = bValid ? "None" : "Error";
 						oValidation.valueStateText = bValid ? "" : sValueStateText;
-					}, true),
-				// Changed state - 'changed' or 'ignoreChanged' - reaction
-				_reactionChanged(oObservable, sPropNameValidation, sPropNameChanged, oObservable2, sIgnoreChanged)
+					}, true)
 			];
 		},
 
