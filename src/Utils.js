@@ -117,7 +117,8 @@ sap.ui.define([
 		 */
 		messageManager: {
 			/**
-			 * Creates a reaction that observes oModel.getProperty(sPropertyPath + "$Validation")'s properties 'valid', 'changedValueState' and 'valueStateText'.
+			 * Creates a reaction that observes oModel.getProperty(sPropertyPath + "$Validation")'s properties
+			 *	'valid', 'changedValueState' and 'valueStateText'.
 			 * The reaction clears, or sets the appropriate message in sap.ui.getCore().getMessageManager().
 			 * The message target is obtained as oController.getView().byId(sControlId).getId() + "/" + sControlProperty.
 			 * Returns the disposer.
