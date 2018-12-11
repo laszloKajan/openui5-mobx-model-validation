@@ -130,17 +130,16 @@ sap.ui.define([
 					// vValue and oValidation may be undefined, e.g. after removing a dwarf in the tutorial
 					var oData = {
 						value: vValue // Value must be accessed and sent to the reaction, in order to have the reaction set the validation message after
-						//					every value change, even if the validation result remains the same: ManagedObject:2701:fModelChangeHandler().
-						//					This is because the control validation message is removed by the framework after every value change.
+							//			 every value change, even if the validation result remains the same: ManagedObject:2701:fModelChangeHandler().
+							//			 This is because the control validation message is removed by the framework after every value change.
 					};
-					if(oValidation) {
-						oData.valid =			oValidation.valid;
-						oData.valueState =		oValidation.changedValueState;
-						oData.valueStateText =	oValidation.valueStateText;
+					if (oValidation) {
+						oData.valid = oValidation.valid;
+						oData.valueState = oValidation.changedValueState;
+						oData.valueStateText = oValidation.valueStateText;
 					}
-					return JSON.stringify(oData);
-				}, function(sValidation) {
-					var oValidation = JSON.parse(sValidation);
+					return oData;
+				}, function(oValidation) {
 					// Could be invalid, but no change yet. Remove the message in case oValidation.valid is undefined.
 					if (oValidation.valid || oValidation.valueState === "None" || oValidation.valid === undefined) {
 						_removeValidationMsg(oModel, sPropertyPath);
@@ -164,6 +163,7 @@ sap.ui.define([
 						oMessageManager.addMessages(oMessage);
 					}
 				}, {
+					compareStructural: true,
 					fireImmediately: true,
 					delay: 5 // Delay is required to allow the message to be set /after/ the framwork removes all control messages upon value change.
 						//		The removal takes place in the flow of the change handler event loop. Delay the reaction to the next event loop.
