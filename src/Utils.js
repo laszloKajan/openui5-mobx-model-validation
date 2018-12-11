@@ -124,17 +124,16 @@ sap.ui.define([
 				var sControlProp = sControlProperty || "value";
 
 				return __mobx.reaction(function() {
-					var vValue = oModel.getProperty(sPropertyPath),
-						oValidation = oModel.getProperty(sPropertyPath + "$Validation");
-					// Pass data as string, so that automatic MobX change detection works
-					// vValue and oValidation may be undefined, e.g. after removing a dwarf in the tutorial
-					var oData = {
-						value: vValue // Value must be accessed and sent to the reaction, in order to have the reaction set the validation message after
-							//			 every value change, even if the validation result remains the same: ManagedObject:2701:fModelChangeHandler().
-							//			 This is because the control validation message is removed by the framework after every value change.
-					};
+					// Observe validation results, not the original value itself, as that and the validation results are not updated in one action.
+					var oValidation = oModel.getProperty(sPropertyPath + "$Validation");
+					// oValidation may be undefined, e.g. after removing a dwarf in the tutorial
+					var oData = {};
 					if (oValidation) {
 						oData.valid = oValidation.valid;
+						// Value must be accessed and sent to the reaction, in order to have the reaction set the validation message after
+						//	every value change, even if the validation result remains the same: ManagedObject:2701:fModelChangeHandler().
+						//	This is because the control validation message is removed by the framework after every value change.
+						oData.value = oValidation.value;
 						oData.valueState = oValidation.changedValueState;
 						oData.valueStateText = oValidation.valueStateText;
 					}
@@ -164,9 +163,10 @@ sap.ui.define([
 					}
 				}, {
 					compareStructural: true,
-					fireImmediately: true,
-					delay: 5 // Delay is required to allow the message to be set /after/ the framwork removes all control messages upon value change.
-						//		The removal takes place in the flow of the change handler event loop. Delay the reaction to the next event loop.
+					fireImmediately: true
+						// delay: 5 // Delay is /not/ required now, as the reaction now does not depend on the value itself, but the result of the validation reaction.
+						//				Otherwise the delay is required to allow the message to be set /after/ the framwork removes all control messages upon value change.
+						//				Message removal takes place in the flow of the change handler event loop. Delay the reaction to the next event loop.
 				});
 			},
 
@@ -237,6 +237,7 @@ sap.ui.define([
 							});
 						}
 						var oValidation = oObservable[sPropNameValidation];
+						__mobx.set(oValidation, "value", value);
 						oValidation.valid = bValid;
 						oValidation.valueState = bValid ? "None" : "Error";
 						oValidation.valueStateText = bValid ? "" : sValueStateText;
