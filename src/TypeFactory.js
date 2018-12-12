@@ -41,11 +41,7 @@ sap.ui.define([
 						}
 						return formatted;
 					} catch (oException) {
-						// if (oException instanceof ParseException) { // TODO: remove commented lines
-							return value;
-						// } else {
-						// 	throw oException;
-						// }
+						return value;
 					}
 				},
 
@@ -81,7 +77,6 @@ sap.ui.define([
 							default:
 								throw new ParseException("Don't know how to convert value to " + sInternalType);
 						}
-						// TODO: test this
 						retVal = BaseType.prototype.parseValue.call(this, vValueInInternalType, sInternalType, bModelValidation);
 						return retVal;
 					} catch (oException) {
