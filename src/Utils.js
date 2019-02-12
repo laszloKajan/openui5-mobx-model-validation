@@ -194,7 +194,7 @@ sap.ui.define([
 		 *									Name of validation property of oObservable, default: sProperty + "$Validation"
 		 * @param {string} sPropNameChanged? -
 		 *									Name of changed flag property of oObservable, default: sProperty + "$Changed"
-		 * @return {[function, function]} 	[disposer function 1]
+		 * @return {[function]} 			[disposer function]
 		 */
 		reactionByTypeChanged: function(oObservable, sProperty, oType, sInternalType, oObservable2, sIgnoreChanged, sPropNameValidation,
 			sPropNameChanged) {
