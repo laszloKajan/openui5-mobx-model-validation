@@ -182,6 +182,14 @@ sap.ui.define([
 		/**
 		 * Creates a model property validation MobX reaction by type validation.
 		 * Only for simple types.
+		 * Validation results are stored in the sPropNameValidation property, which references an object like:
+		 * {
+		 *   value: 			any,						// the value that was validated
+		 *   valid: 			[true|false],
+		 *	 valueState:		["None"|"Error"],
+		 *   valueStateText:	"",							// validation message, if any
+		 *   changedValueState:	["None"|"Error"]			// valueState, taking into account the sPropNameChanged and sIgnoreChanged properties, see below
+		 * }.
 		 * Returns the reaction disposer.
 		 *
 		 * @param {object} oObservable - 	Observable object
@@ -193,7 +201,9 @@ sap.ui.define([
 		 * @param {string} sPropNameValidation? -
 		 *									Name of validation property of oObservable, default: sProperty + "$Validation"
 		 * @param {string} sPropNameChanged? -
-		 *									Name of changed flag property of oObservable, default: sProperty + "$Changed"
+		 *									Name of changed flag property of oObservable, default: sProperty + "$Changed".
+		 *									If sProperty is not yet changed and oObservable2[sIgnoreChanged] is false, changedValueState will not
+		 *									indicate a validation error. This is to allow initial, not-yet-changed fields to show up with a "None" value state.
 		 * @return {[function]} 			[disposer function]
 		 */
 		reactionByTypeChanged: function(oObservable, sProperty, oType, sInternalType, oObservable2, sIgnoreChanged, sPropNameValidation,
@@ -228,6 +238,7 @@ sap.ui.define([
 						//
 						if (!oObservable[sPropNameValidation]) {
 							__mobx.set(oObservable, sPropNameValidation, { // More properties may be added downstream
+								//value: value
 								valid: false,
 								valueState: "None",
 								valueStateText: "",
