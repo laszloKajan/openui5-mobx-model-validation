@@ -95,11 +95,21 @@ sap.ui.define([
 		}
 	};
 
-	return {
+	var utils = {
 		/**
 		 * Namespace for functions related to sap.ui.core.message.MessageManager
 		 */
 		messageManager: {
+			/**
+			 * Escape curly brackets [{}] in oValidation.valueStateText with '\'. Returns the escaped valueStateText.
+			 *
+			 * @param {object} oValidation - 	Validation results object. See fMsgTransformer parameter of reactionValidationMsg().
+			 * @return {string} 				The escaped valueStateText
+			 */
+			escapeCurlies: function(oValidation) {
+				return oValidation.valueStateText.replace(/([{}])/g, "\\$1");
+			},
+			
 			/**
 			 * Creates a reaction that observes oModel.getProperty(sPropertyPath + "$Validation")'s properties
 			 *	'valid', 'changedValueState' and 'valueStateText'.
@@ -112,16 +122,23 @@ sap.ui.define([
 			 * @param {string} sPropertyPath -	Model property path to observe for validation results, e.g. '/nAmount'.
 			 *									The property observed is sPropertyPath + "$Validation".
 			 * @param {string} sControlId -		View 'id' of control that is the 'target' of the message
-			 * @param {string} sControlProperty -
+			 * @param {string} sControlProperty? -
 			 *									Bound property of message target control, default: 'value'.
+			 * @param {function} fMessageTransformer? -
+			 *									Message transformer function with signature (v: {exception: undefined | ParseException | ValidateException,
+			 *										valid: boolean, value: any, valueState: "None" | "Error", valueStateText: string}): string.
+			 *									The default implementation is escapeCurlies().
+			 *									Allows the customization of validation messages. Especially useful when regular expression constraints are used,
+			 *									and the raw message is like 'Enter a value matching "the.regular.expression"'.
 			 * @return {function} 				Disposer function
 			 */
-			reactionValidationMsg: function(oController, oModel, sPropertyPath, sControlId, sControlProperty) { // , "/nAmount", "inputAmount", "value");
+			reactionValidationMsg: function(oController, oModel, sPropertyPath, sControlId, sControlProperty, fMessageTransformer) { // , "/nAmount", "inputAmount", "value");
 
 				var oMessageProcessor = new sap.ui.core.message.ControlMessageProcessor();
 				var oMessageManager = sap.ui.getCore().getMessageManager();
 				var sPathValidationMsg = sPropertyPath + "$ValidationMsg";
 				var sControlProp = sControlProperty || "value";
+				var fMsgTransformer = fMessageTransformer || utils.messageManager.escapeCurlies;
 
 				return __mobx.reaction(function() {
 					// Observe validation results, not the original value itself, as that and the validation results are not updated in one action.
@@ -129,9 +146,10 @@ sap.ui.define([
 					// oValidation may be undefined, e.g. after removing a dwarf in the tutorial
 					var oData = {};
 					if (oValidation) {
+						oData.exception = oValidation.exception;
 						oData.valid = oValidation.valid;
 						// Value must be accessed and sent to the reaction, in order to have the reaction set the validation message after
-						//	every value change, even if the validation result remains the same: ManagedObject:2701:fModelChangeHandler().
+						//	every value change, even if the validation /result/ remains the same: ManagedObject:2701:fModelChangeHandler().
 						//	This is because the control validation message is removed by the framework after every value change.
 						oData.value = oValidation.value;
 						oData.valueState = oValidation.changedValueState;
@@ -147,7 +165,7 @@ sap.ui.define([
 						//
 						var oMessage;
 						oModel.setProperty(sPathValidationMsg, oMessage = new Message({
-							message: oValidation.valueStateText.replace(/([{}])/g, "\\$1"),
+							message: fMsgTransformer(oValidation),
 							type: oValidation.valueState,
 							target: oController.getView().byId(sControlId).getId() + "/" + sControlProp, // global control ID, no leading '/'
 							// technical: true,
@@ -184,11 +202,12 @@ sap.ui.define([
 		 * Only for simple types.
 		 * Validation results are stored in the sPropNameValidation property, which references an object like:
 		 * {
+		 *	 exception:			undefined | ParseException | ValidateException
 		 *   value: 			any,						// the value that was validated
-		 *   valid: 			[true|false],
-		 *	 valueState:		["None"|"Error"],
-		 *   valueStateText:	"",							// validation message, if any
-		 *   changedValueState:	["None"|"Error"]			// valueState, taking into account the sPropNameChanged and sIgnoreChanged properties, see below
+		 *   valid: 			boolean,
+		 *	 valueState:		"None" | "Error",
+		 *   valueStateText:	string,						// validation message, if any
+		 *   changedValueState:	"None" | "Error"			// valueState, taking into account the sPropNameChanged and sIgnoreChanged properties, see below
 		 * }.
 		 * Returns the reaction disposer.
 		 *
@@ -220,24 +239,26 @@ sap.ui.define([
 					},
 					function(value) {
 						// Condition
-						var bValid, sValueStateText;
+						var bValid, oException, sValueStateText;
 						try {
 							// lkajan: In order to establish validity, we need to check parsability and validity, as the latter only checks constraints (if any).
 							//		Parsability is meant for /model/ (not internal/input) values here.
 							var parsedValue = oType.parseValue(value, sInternalType, true);
 							oType.validateValue(parsedValue, true);
 							bValid = true;
-						} catch (oException) {
-							if (oException instanceof ParseException || oException instanceof ValidateException) {
+						} catch (oEx) {
+							if (oEx instanceof ParseException || oEx instanceof ValidateException) {
 								bValid = false;
-								sValueStateText = oException.message;
+								oException = oEx;
+								sValueStateText = oEx.message;
 							} else {
-								throw oException;
+								throw oEx;
 							}
 						}
 						//
 						if (!oObservable[sPropNameValidation]) {
 							__mobx.set(oObservable, sPropNameValidation, { // More properties may be added downstream
+								//exception: oException
 								//value: value
 								valid: false,
 								valueState: "None",
@@ -248,6 +269,7 @@ sap.ui.define([
 							});
 						}
 						var oValidation = oObservable[sPropNameValidation];
+						__mobx.set(oValidation, "exception", oException);
 						__mobx.set(oValidation, "value", value);
 						oValidation.valid = bValid;
 						oValidation.valueState = bValid ? "None" : "Error";
@@ -260,4 +282,6 @@ sap.ui.define([
 			return fTransformModelToValidationArray(oSource, "");
 		})
 	};
+	
+	return utils;
 });
