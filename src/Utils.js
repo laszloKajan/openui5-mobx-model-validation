@@ -277,8 +277,8 @@ sap.ui.define([
 		 * @param {object} oNode: any -		Observable node
 		 */
 		reset$Changed: function(__oNode) {
-			_walk(__oNode, function(oNode, sChildKey, sNodePath) {
-				console.log(sNodePath + (sNodePath.substr(-1, 1) === "/" ? "" : "/") + sChildKey);
+			_walk(__oNode, function(oNode, sChildKey/*, sNodePath*/) {
+				// console.log(sNodePath + (sNodePath.substr(-1, 1) === "/" ? "" : "/") + sChildKey);
 				if (typeof oNode[sChildKey] === "boolean" && /\$Changed$/.test(sChildKey)) {
 					oNode[sChildKey] = false;
 				}
