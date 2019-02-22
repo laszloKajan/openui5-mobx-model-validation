@@ -51,27 +51,18 @@ sap.ui.define([
 					}
 				} else {
 					// Descend?
-					switch (typeof(oNode[sKey])) {
-						case "boolean":
-						case "number":
-						case "string":
-						case "undefined":
-							break;
-						default:
-							if (!bIsObservableObject || Object.getOwnPropertyDescriptor(oNode, sKey).enumerable) { // Model calculated (get) properties become 'enumberable = false' when the object is made observable.
+					if (typeof oNode[sKey] === "object" && oNode[sKey] !== null &&
+						(!bIsObservableObject || Object.getOwnPropertyDescriptor(oNode, sKey).enumerable)) { // Model calculated (get) properties become 'enumberable = false' when the object is made observable.
 
-								var sChildPath = __p.path + "/" + sKey;
-								var oChildNode = oNode[sKey];
-								var aChildRes = fTransformModelToValidationArray(oChildNode, sChildPath);
-								Array.prototype.push.apply(poAcc, aChildRes);
-							}
+						var sChildPath = __p.path + "/" + sKey;
+						var oChildNode = oNode[sKey];
+						var aChildRes = fTransformModelToValidationArray(oChildNode, sChildPath);
+						Array.prototype.push.apply(poAcc, aChildRes);
 					}
 				}
 				return poAcc;
 			}, []);
-
 			// console.log("fTransformModelToValidationArray" + " " + __p.path);
-
 			return oAcc;
 		},
 		function(result, value) {
@@ -286,7 +277,8 @@ sap.ui.define([
 		 * @param {object} oNode: any -		Observable node
 		 */
 		reset$Changed: function(__oNode) {
-			_walk(__oNode, function(oNode, sChildKey) {
+			_walk(__oNode, function(oNode, sChildKey, sNodePath) {
+				console.log(sNodePath + (sNodePath.substr(-1, 1) === "/" ? "" : "/") + sChildKey);
 				if (typeof oNode[sChildKey] === "boolean" && /\$Changed$/.test(sChildKey)) {
 					oNode[sChildKey] = false;
 				}
@@ -321,15 +313,9 @@ sap.ui.define([
 						fFunc(oNode, sChildKey, sPath);
 						//
 						var oChildNode = oNode[sChildKey];
-						switch (typeof oChildNode) {
-							case "boolean":
-							case "number":
-							case "string":
-							case "undefined":
-								break;
-							default: // object or array
-								var sChildPath = sPath + (sPath.substr(-1, 1) !== "/" ? "/" : "") + sChildKey;
-								_walk(oChildNode, fFunc, sChildKey, sChildPath);
+						if (typeof oChildNode === "object") {
+							var sChildPath = sPath + (sPath.substr(-1, 1) !== "/" ? "/" : "") + sChildKey;
+							_walk(oChildNode, fFunc, sChildKey, sChildPath);
 						}
 					}
 				});
