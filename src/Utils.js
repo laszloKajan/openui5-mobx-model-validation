@@ -33,7 +33,7 @@ sap.ui.define([
 
 			var oNode = __p.node;
 			var bIsObservableObject = __mobx.isObservableObject(oNode);
-			var aKeys = __mobx.isObservableArray(oNode) ? Object.keys(oNode.peek()) : Object.getOwnPropertyNames(oNode); // We need get() properties too, but ...
+			var aKeys = __mobx.isObservableArray(oNode) ? Object.keys(oNode.peek()) : Object.getOwnPropertyNames(oNode); // getOwnPropertyNames() gives get() properties too, with Object.getOwnPropertyDescriptor(oNode, sKey).enumerable becoming false, when the object is made observable.
 
 			var oAcc = aKeys.filter(function(sKey) {
 				return sKey.indexOf("$") === -1;
@@ -58,7 +58,7 @@ sap.ui.define([
 						case "undefined":
 							break;
 						default:
-							if (!bIsObservableObject || Object.getOwnPropertyDescriptor(oNode, sKey).enumerable) { // Model calculated (get) properties become 'enumberable = false' while being made observable
+							if (!bIsObservableObject || Object.getOwnPropertyDescriptor(oNode, sKey).enumerable) { // Model calculated (get) properties become 'enumberable = false' when the object is made observable.
 
 								var sChildPath = __p.path + "/" + sKey;
 								var oChildNode = oNode[sKey];
@@ -95,6 +95,8 @@ sap.ui.define([
 		}
 	};
 
+	var _walk;
+
 	var utils = {
 		/**
 		 * Namespace for functions related to sap.ui.core.message.MessageManager
@@ -103,13 +105,13 @@ sap.ui.define([
 			/**
 			 * Escape curly brackets [{}] in oValidation.valueStateText with '\'. Returns the escaped valueStateText.
 			 *
-			 * @param {object} oValidation - 	Validation results object. See fMsgTransformer parameter of reactionValidationMsg().
-			 * @return {string} 				The escaped valueStateText
+			 * @param {object} oValidation	 	Validation results object. See fMsgTransformer parameter of reactionValidationMsg().
+			 * @returns {string} 				The escaped valueStateText
 			 */
 			escapeCurlies: function(oValidation) {
 				return oValidation.valueStateText.replace(/([{}])/g, "\\$1");
 			},
-			
+
 			/**
 			 * Creates a reaction that observes oModel.getProperty(sPropertyPath + "$Validation")'s properties
 			 *	'valid', 'changedValueState' and 'valueStateText'.
@@ -117,20 +119,20 @@ sap.ui.define([
 			 * The message target is obtained as oController.getView().byId(sControlId).getId() + "/" + sControlProperty.
 			 * Returns the disposer.
 			 *
-			 * @param {object} oController - 	Controller
-			 * @param {object} oModel -			Observable data model
-			 * @param {string} sPropertyPath -	Model property path to observe for validation results, e.g. '/nAmount'.
+			 * @param {object} oController  	Controller
+			 * @param {object} oModel 			Observable data model
+			 * @param {string} sPropertyPath 	Model property path to observe for validation results, e.g. '/nAmount'.
 			 *									The property observed is sPropertyPath + "$Validation".
-			 * @param {string} sControlId -		View 'id' of control that is the 'target' of the message
-			 * @param {string} sControlProperty? -
+			 * @param {string} sControlId 		View 'id' of control that is the 'target' of the message
+			 * @param {string} sControlProperty? 
 			 *									Bound property of message target control, default: 'value'.
-			 * @param {function} fMessageTransformer? -
-			 *									Message transformer function with signature (v: {exception: undefined | ParseException | ValidateException,
-			 *										valid: boolean, value: any, valueState: "None" | "Error", valueStateText: string}): string.
+			 * @param {function} fMessageTransformer?: (p1: {exception: undefined | ParseException | ValidateException;
+			 *										valid: boolean; value: any; valueState: "None" | "Error"; valueStateText: string}) => string
+			 *									Message transformer function.
 			 *									The default implementation is escapeCurlies().
 			 *									Allows the customization of validation messages. Especially useful when regular expression constraints are used,
 			 *									and the raw message is like 'Enter a value matching "the.regular.expression"'.
-			 * @return {function} 				Disposer function
+			 * @returns {function} 				Disposer function
 			 */
 			reactionValidationMsg: function(oController, oModel, sPropertyPath, sControlId, sControlProperty, fMessageTransformer) { // , "/nAmount", "inputAmount", "value");
 
@@ -211,19 +213,19 @@ sap.ui.define([
 		 * }.
 		 * Returns the reaction disposer.
 		 *
-		 * @param {object} oObservable - 	Observable object
-		 * @param {string} sProperty -		Observable property
-		 * @param {object} oType -			Property type instance
-		 * @param {string} sInternalType -	Type used to display and input property, c.f. model type
-		 * @param {object} oObservable2 -	Observable object for bIgnoreChanged property
-		 * @param {string} sIgnoreChanged -	oObservable2 property that controls whether the changed status of oObservable[sProperty] is ignored
-		 * @param {string} sPropNameValidation? -
+		 * @param {object} oObservable  	Observable object
+		 * @param {string} sProperty 		Observable property
+		 * @param {object} oType 			Property type instance
+		 * @param {string} sInternalType 	Type used to display and input property, c.f. model type
+		 * @param {object} oObservable2 	Observable object for bIgnoreChanged property
+		 * @param {string} sIgnoreChanged 	oObservable2 property that controls whether the changed status of oObservable[sProperty] is ignored
+		 * @param {string} sPropNameValidation?
 		 *									Name of validation property of oObservable, default: sProperty + "$Validation"
-		 * @param {string} sPropNameChanged? -
+		 * @param {string} sPropNameChanged?
 		 *									Name of changed flag property of oObservable, default: sProperty + "$Changed".
 		 *									If sProperty is not yet changed and oObservable2[sIgnoreChanged] is false, changedValueState will not
 		 *									indicate a validation error. This is to allow initial, not-yet-changed fields to show up with a "None" value state.
-		 * @return {[function]} 			[disposer function]
+		 * @returns {[function]} 			[disposer function]
 		 */
 		reactionByTypeChanged: function(oObservable, sProperty, oType, sInternalType, oObservable2, sIgnoreChanged, sPropNameValidation,
 			sPropNameChanged) {
@@ -278,10 +280,61 @@ sap.ui.define([
 			];
 		},
 
+		/**
+		 * Reset all *$Changed properties.
+		 * 
+		 * @param {object} oNode: any -		Observable node
+		 */
+		reset$Changed: function(__oNode) {
+			_walk(__oNode, function(oNode, sChildKey) {
+				if (typeof oNode[sChildKey] === "boolean" && /\$Changed$/.test(sChildKey)) {
+					oNode[sChildKey] = false;
+				}
+			});
+		},
+
 		transformModelToValidationArray: __mobxUtils.createTransformer(function(oSource) {
 			return fTransformModelToValidationArray(oSource, "");
-		})
+		}),
+
+		/**
+		 * Perform a depth-first walk of the tree, calling given function on every child node.
+		 * Child nodes "$mobx" and "$transformId" are ignored.
+		 * Will not descend into child nodes with "$" in the name.
+		 * 
+		 * @param {object} oNode: any 		Observable node
+		 * @param {function} fFunc: (oNode: any; sChildKey: string; sNodePath: string) => void
+		 *									Callback
+		 * @param {string} sKey? 			Key of given node, default: ""
+		 * @param {string} sPath? 			Path of given node, default: "/"
+		 */
+		walk: _walk = function(oNode, fFunc, sKey, sPath) {
+
+			sKey = sKey || "";
+			sPath = sPath || "/";
+
+			if (typeof oNode === "object" && oNode !== null && sKey.indexOf("$") === -1) {
+				var aKeys = __mobx.isObservableArray(oNode) ? Object.keys(oNode.peek()) : Object.getOwnPropertyNames(oNode);
+
+				aKeys.forEach(function(sChildKey) {
+					if (sChildKey !== "$mobx" && sChildKey !== "$transformId") {
+						fFunc(oNode, sChildKey, sPath);
+						//
+						var oChildNode = oNode[sChildKey];
+						switch (typeof oChildNode) {
+							case "boolean":
+							case "number":
+							case "string":
+							case "undefined":
+								break;
+							default: // object or array
+								var sChildPath = sPath + (sPath.substr(-1, 1) !== "/" ? "/" : "") + sChildKey;
+								_walk(oChildNode, fFunc, sChildKey, sChildPath);
+						}
+					}
+				});
+			}
+		}
 	};
-	
 	return utils;
 });
