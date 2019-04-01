@@ -1,0 +1,29 @@
+<?xml version="1.0" ?>
+<library xmlns="http://www.sap.com/sap.ui.library.xsd">
+    <name>openui5.mobx.model.validation</name>
+    <vendor>Laszlo Kajan</vendor>
+    <version>${version}</version>
+    <copyright>${copyright}</copyright>
+    <title>>{{title}}</title>
+    <documentation>com.roche.eihb.ict.lib</documentation>
+	<appData>
+	    <manifest xmlns="http://www.sap.com/ui5/buildext/manifest" >
+	        <i18n> messagebundle.properties</i18n>
+	        <offline>false</offline>
+	        <deviceTypes desktop="true" phone="true" tablet="true" />
+	        <sap.fiori>
+	            <registrationId></registrationId>
+	            <archeType>reusecomponent</archeType>
+	        </sap.fiori>
+	    </manifest>
+	    <ownership xmlns="http://www.sap.com/ui5/buildext/ownership">
+	        <component></component>
+	    </ownership>
+  </appData>
+
+	<dependencies>
+		<dependency>
+			<libraryName>sap.ui.core</libraryName>
+		</dependency>
+	</dependencies>
+</library>
