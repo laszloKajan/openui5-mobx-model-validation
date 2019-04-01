@@ -5,11 +5,11 @@
     <version>${version}</version>
     <copyright>${copyright}</copyright>
     <title>>{{title}}</title>
-    <documentation>com.roche.eihb.ict.lib</documentation>
+    <documentation>openui5.mobx.model.validation</documentation>
 	<appData>
 	    <manifest xmlns="http://www.sap.com/ui5/buildext/manifest" >
-	        <i18n> messagebundle.properties</i18n>
-	        <offline>false</offline>
+	        <i18n>messagebundle.properties</i18n>
+	        <offline>true</offline>
 	        <deviceTypes desktop="true" phone="true" tablet="true" />
 	        <sap.fiori>
 	            <registrationId></registrationId>
