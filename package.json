@@ -1,7 +1,7 @@
 {
   "name": "openui5-mobx-model-validation",
-  "version": "1.2.0",
-  "description": "Model validation helpers for MobxModel",
+  "version": "1.2.1",
+  "description": "Model validation helpers for openui5-mobx-model",
   "license": "Apache-2.0",
   "author": "Laszlo Kajan",
   "peerDependencies": {
